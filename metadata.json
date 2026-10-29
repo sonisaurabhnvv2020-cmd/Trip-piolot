@@ -1,0 +1,6 @@
+{
+  "name": "DepartWise AI",
+  "description": "Smart pre-departure traffic and bypass dispatcher that analyzes bottleneck causes, backdoor routes, and departure windows with voice briefings and instant message cards.",
+  "requestFramePermissions": ["geolocation"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

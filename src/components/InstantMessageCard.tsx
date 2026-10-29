@@ -1,0 +1,280 @@
+import React, { useState } from 'react';
+import { TrafficBriefing, PreplannedTrip } from '../types';
+import {
+  Check,
+  Copy,
+  MessageSquare,
+  Play,
+  Square,
+  Share2,
+  Send,
+  Volume2,
+  Sparkles,
+  Smartphone,
+  CheckCircle,
+} from 'lucide-react';
+import { speechEngine } from '../utils/speech';
+
+interface InstantMessageCardProps {
+  briefing: TrafficBriefing | null;
+  trip: PreplannedTrip;
+  onSimulatePush: () => void;
+}
+
+export const InstantMessageCard: React.FC<InstantMessageCardProps> = ({
+  briefing,
+  trip,
+  onSimulatePush,
+}) => {
+  const [copied, setCopied] = useState(false);
+  const [isPlayingAudio, setIsPlayingAudio] = useState(false);
+  const [activePlatform, setActivePlatform] = useState<'whatsapp' | 'sms' | 'telegram'>('whatsapp');
+
+  if (!briefing) {
+    return (
+      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-8 text-center space-y-3">
+        <MessageSquare className="w-8 h-8 text-slate-500 mx-auto" />
+        <h3 className="text-base font-semibold text-white">No Message Dispatched Yet</h3>
+        <p className="text-xs text-slate-400 max-w-sm mx-auto">
+          Run an AI corridor scan on your scheduled commute to generate a formatted departure message card and voice briefing.
+        </p>
+      </div>
+    );
+  }
+
+  const messageText = briefing.instantMessagePayload;
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(messageText);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2200);
+  };
+
+  const handleWhatsAppSend = () => {
+    const encoded = encodeURIComponent(messageText);
+    window.open(`https://api.whatsapp.com/send?text=${encoded}`, '_blank');
+  };
+
+  const handleNativeShare = async () => {
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: `DepartWise Pre-Trip Traffic Dispatch`,
+          text: messageText,
+        });
+      } catch (e) {
+        // user canceled or unsupported
+      }
+    } else {
+      handleCopy();
+    }
+  };
+
+  const handleToggleVoice = () => {
+    if (isPlayingAudio) {
+      speechEngine.stop();
+      setIsPlayingAudio(false);
+    } else {
+      setIsPlayingAudio(true);
+      speechEngine.speak(
+        briefing.voiceScript || briefing.corridorSummary,
+        () => setIsPlayingAudio(false),
+        () => setIsPlayingAudio(false)
+      );
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Header Info */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h3 className="text-lg font-bold text-white font-display flex items-center gap-2">
+            <MessageSquare className="w-5 h-5 text-cyan-400" />
+            <span>Pre-Departure Instant Message Dispatch</span>
+          </h3>
+          <p className="text-xs text-slate-400">
+            Automated intelligence brief delivered before you leave {trip.origin}. Ready to forward to family, rideshares, or co-workers.
+          </p>
+        </div>
+
+        {/* Platform Selector */}
+        <div className="flex items-center gap-1 bg-slate-900 border border-slate-800 p-1 rounded-lg text-xs">
+          <button
+            onClick={() => setActivePlatform('whatsapp')}
+            className={`px-3 py-1 font-medium rounded-md transition-colors ${
+              activePlatform === 'whatsapp'
+                ? 'bg-emerald-600 text-white shadow-sm'
+                : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            WhatsApp
+          </button>
+          <button
+            onClick={() => setActivePlatform('sms')}
+            className={`px-3 py-1 font-medium rounded-md transition-colors ${
+              activePlatform === 'sms'
+                ? 'bg-blue-600 text-white shadow-sm'
+                : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            iMessage / SMS
+          </button>
+          <button
+            onClick={() => setActivePlatform('telegram')}
+            className={`px-3 py-1 font-medium rounded-md transition-colors ${
+              activePlatform === 'telegram'
+                ? 'bg-sky-600 text-white shadow-sm'
+                : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            Telegram
+          </button>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        {/* Left Column: Simulated Phone Bubble Preview */}
+        <div className="lg:col-span-7 bg-slate-900 border border-slate-800 rounded-2xl p-5 md:p-6 shadow-xl space-y-4">
+          <div className="flex items-center justify-between pb-3 border-b border-slate-800 text-xs text-slate-400">
+            <div className="flex items-center gap-2">
+              <Smartphone className="w-4 h-4 text-cyan-400" />
+              <span>Simulated {activePlatform === 'whatsapp' ? 'WhatsApp' : activePlatform === 'sms' ? 'SMS' : 'Telegram'} Message Card</span>
+            </div>
+            <span className="font-mono text-[11px] text-slate-500">Auto-Generated by DepartWise</span>
+          </div>
+
+          {/* Visual Chat Bubble Box */}
+          <div className="bg-slate-950 rounded-2xl p-4 sm:p-5 border border-slate-800 relative">
+            {/* Bubble Header */}
+            <div className="flex items-center gap-2 mb-3 pb-2 border-b border-slate-900 text-[11px] text-slate-400">
+              <div className="w-2 h-2 rounded-full bg-emerald-400" />
+              <strong className="text-slate-300">DepartWise AI Dispatcher</strong>
+              <span>·</span>
+              <span>Today at {new Date(briefing.generatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+            </div>
+
+            {/* Bubble Content with Clean Typography */}
+            <pre className="font-sans text-xs sm:text-sm text-slate-200 whitespace-pre-wrap leading-relaxed select-all">
+              {messageText}
+            </pre>
+
+            {/* Bubble Footer status */}
+            <div className="mt-3 pt-2 border-t border-slate-900 flex justify-end items-center gap-1 text-[11px] text-slate-500">
+              <span>Delivered</span>
+              <Check className="w-3.5 h-3.5 text-cyan-400" />
+            </div>
+          </div>
+
+          {/* Quick Action Toolbar */}
+          <div className="flex flex-wrap items-center gap-2 pt-2">
+            <button
+              onClick={handleCopy}
+              className="flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-slate-200 hover:text-white bg-slate-950 border border-slate-800 hover:border-slate-700 rounded-lg transition-colors"
+            >
+              {copied ? <CheckCircle className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5 text-cyan-400" />}
+              <span>{copied ? 'Copied to Clipboard!' : 'Copy Message'}</span>
+            </button>
+
+            <button
+              onClick={handleWhatsAppSend}
+              className="flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-500 rounded-lg transition-colors shadow-sm shadow-emerald-950"
+            >
+              <Send className="w-3.5 h-3.5" />
+              <span>Share via WhatsApp</span>
+            </button>
+
+            <button
+              onClick={handleNativeShare}
+              className="flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-slate-200 hover:text-white bg-slate-950 border border-slate-800 hover:border-slate-700 rounded-lg transition-colors"
+            >
+              <Share2 className="w-3.5 h-3.5 text-blue-400" />
+              <span>Share...</span>
+            </button>
+
+            <button
+              onClick={onSimulatePush}
+              className="flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-amber-300 hover:text-amber-200 bg-amber-950/40 border border-amber-800/60 rounded-lg transition-colors ml-auto"
+            >
+              <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+              <span>Preview Push Notification</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Right Column: Spoken Audio Voice Briefing Player */}
+        <div className="lg:col-span-5 bg-gradient-to-b from-slate-900 to-slate-950 border border-slate-800 rounded-2xl p-5 md:p-6 shadow-xl space-y-4">
+          <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+            <div className="flex items-center gap-2">
+              <Volume2 className="w-4 h-4 text-cyan-400" />
+              <h4 className="text-xs font-bold uppercase tracking-wider text-white font-display">
+                Voice Briefing Audio Studio
+              </h4>
+            </div>
+            <span className="text-[10px] font-mono font-medium text-cyan-400 bg-cyan-950/60 border border-cyan-800/60 px-2 py-0.5 rounded">
+              Eyes-Free Speech
+            </span>
+          </div>
+
+          <p className="text-xs text-slate-300 leading-relaxed">
+            Listen to your pre-departure traffic audio summary while having breakfast or putting on your coat.
+          </p>
+
+          {/* Voice Player Controls */}
+          <div className="bg-slate-950 border border-slate-800 rounded-xl p-4 space-y-4 text-center">
+            {/* Animated Equalizer Waveform */}
+            <div className="flex items-center justify-center gap-1.5 h-10 py-1">
+              {[40, 75, 55, 90, 60, 85, 45, 95, 70, 50, 80, 65].map((height, i) => (
+                <div
+                  key={i}
+                  style={{ height: isPlayingAudio ? `${height}%` : '20%' }}
+                  className={`w-1 rounded-full transition-all duration-300 ${
+                    isPlayingAudio ? 'bg-gradient-to-t from-cyan-500 to-blue-400 animate-pulse' : 'bg-slate-700'
+                  }`}
+                />
+              ))}
+            </div>
+
+            {/* Play/Stop Button */}
+            <div>
+              <button
+                onClick={handleToggleVoice}
+                className={`inline-flex items-center gap-2 px-5 py-2.5 text-xs font-bold uppercase tracking-wider rounded-xl transition-all shadow-lg ${
+                  isPlayingAudio
+                    ? 'bg-rose-500 hover:bg-rose-600 text-white shadow-rose-950'
+                    : 'bg-gradient-to-r from-cyan-400 to-blue-500 hover:from-cyan-300 hover:to-blue-400 text-slate-950 shadow-cyan-950'
+                }`}
+              >
+                {isPlayingAudio ? (
+                  <>
+                    <Square className="w-4 h-4 fill-current" />
+                    <span>Stop Speech Briefing</span>
+                  </>
+                ) : (
+                  <>
+                    <Play className="w-4 h-4 fill-current" />
+                    <span>Play Spoken Briefing</span>
+                  </>
+                )}
+              </button>
+            </div>
+
+            <div className="text-[11px] text-slate-500 italic">
+              {isPlayingAudio ? 'Speaking now via high-definition speech synthesis...' : 'Click play to listen aloud before leaving'}
+            </div>
+          </div>
+
+          {/* Spoken Script Transcription */}
+          <div className="bg-slate-950/60 border border-slate-800/80 rounded-xl p-3.5 space-y-1.5">
+            <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
+              Speech Transcript
+            </div>
+            <p className="text-xs text-slate-300 italic leading-relaxed">
+              "{briefing.voiceScript || briefing.corridorSummary}"
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
